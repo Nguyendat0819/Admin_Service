@@ -14,9 +14,10 @@ import lombok.NoArgsConstructor;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class ApiResponse <T>{
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-    private java.time.LocalDateTime timestamp;
-    private int status;
+    private java.time.LocalDateTime transactionTime;
+    private String code;
     private String message;
+    private String traceId;
     private T data;
 
 }

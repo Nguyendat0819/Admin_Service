@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 public class TemplateController implements TemplateApi {
     @Override
     public ApiResponse<String> test(){
-        return ApiResponse.<String>builder() .timestamp(LocalDateTime.now())
-                .status(200).message("success").build();
+        return ApiResponse.<String>builder() .transactionTime(LocalDateTime.now())
+                .code("200").message("success").build();
     }
 }

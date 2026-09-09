@@ -8,7 +8,10 @@ import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -20,19 +23,32 @@ public class SecurityConfig {
 
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http, com.example.java_template.common.filter.JwtAuthenticationFilter jwtAuthFilter) throws Exception {
         http
-                // Tắt CSRF: REST stateless dùng Bearer token (không cookie) -> CSRF không áp dụng.( tat Cookie/Session -> dùng JWT)
+                // Tắt CSRF: REST stateless dùng Bearer token (không cookie) -> CSRF không áp dụng.
                 .csrf(AbstractHttpConfigurer::disable)
-                // Bật CORS: Spring Security tự tìm bean CorsConfigurationSource (theo type) bên dưới.( Cho phép cấu hình thông qua như 4200 và method)
+                
+                // Bật CORS: Spring Security tự tìm bean CorsConfigurationSource
                 .cors(Customizer.withDefaults())
+                
+                // Phân quyền request
                 .authorizeHttpRequests(auth -> auth
-                        .anyRequest().permitAll()
+                        // Cho phép truy cập công khai vào các API đăng nhập/đăng ký
+                        .requestMatchers("/api/auth/**").permitAll()
+                        
+                        // Cấu hình thêm các endpoint public khác ở đây nếu có (ví dụ swagger, v.v.)
+                        // .requestMatchers("/v3/api-docs/**", "/swagger-ui/**").permitAll()
+                        
+                        // Bất kỳ request nào khác đều bắt buộc phải có token hợp lệ
+                        .anyRequest().authenticated()
                 )
-                // Không tạo/dùng HTTP session: mỗi request tự mang token -> stateless, scale ngang dễ.( mỗi request đều đính kèm JWT)
-                .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
+                
+                // Không tạo/dùng HTTP session (vì đang dùng JWT)
+                .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                
+                // Thêm filter JWT vào TRƯỚC UsernamePasswordAuthenticationFilter của Spring Security
+                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
-//        can cái xác định JWT
         return http.build();
     }
 
@@ -68,6 +84,11 @@ public class SecurityConfig {
         source.registerCorsConfiguration("/**", configuration);
         //"/**" nghĩa là mọi endpoint.
         return source;
+    }
+
+    @Bean
+    public PasswordEncoder passwordEncoder(){
+        return new BCryptPasswordEncoder();
     }
 
 }
