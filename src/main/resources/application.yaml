@@ -1,3 +1,40 @@
 spring:
   application:
     name: Java_Template
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 16
+          max-idle: 8
+          min-idle: 2
+
+# JWT — access token (ngắn hạn, dùng gọi API)
+jwt:
+  secret: ${JWT_ACCESS_SECRET:myAccessSecretKey1234567890123456789012345678901234567890}
+  expiration: ${JWT_ACCESS_EXPIRATION:5}                # 15 phút (giây)
+  # JWT — refresh token (dài hạn, CHỈ dùng để lấy access token mới)
+  refresh:
+    secret: ${JWT_REFRESH_SECRET:myRefreshSecretKey12345678901234567890123456789012}
+    expiration: ${JWT_REFRESH_EXPIRATION:604800}          # 7 ngày (giây)
+
+# Cookie HttpOnly chứa refresh token
+cookie:
+  refresh-name: ${COOKIE_NAME:refreshToken}
+  path: /
+  secure: ${COOKIE_SECURE:false}                          # true khi deploy HTTPS
+  same-site: ${COOKIE_SAME_SITE:Lax}                      # Lax | Strict | None
+
+# ============================================================
+#  Cấu hình riêng của app
+# ============================================================
+app:
+  refresh-token:
+    # "redis"     → dùng Redis (production, scale được nhiều instance)
+    # "in-memory" → dùng ConcurrentHashMap trong JVM (dev/test, mất khi restart)
+    # Mặc định: redis
+    storage: ${REFRESH_TOKEN_STORAGE:redis}

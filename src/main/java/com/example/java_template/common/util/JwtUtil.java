@@ -16,87 +16,132 @@ import jakarta.servlet.http.HttpServletRequest;
 
 /**
  * Lớp tiện ích hỗ trợ các thao tác liên quan đến JSON Web Token (JWT).
- * Cung cấp các chức năng: tạo token, trích xuất thông tin từ token và xác thực
- * token.
+ *
+ * <p>Hỗ trợ 2 loại token tách biệt (ký bằng 2 secret khác nhau):</p>
+ * <ul>
+ *   <li><b>Access Token</b>: ngắn hạn (mặc định 15 phút), dùng để gọi API,
+ *       gửi qua header {@code Authorization: Bearer ...}</li>
+ *   <li><b>Refresh Token</b>: dài hạn (mặc định 7 ngày), dùng để lấy access token mới
+ *       khi access hết hạn, gửi qua HttpOnly cookie</li>
+ * </ul>
+ *
+ * <p>Dùng 2 secret khác nhau → kẻ tấn công lộ được access token không thể
+ * tự tạo refresh token và ngược lại.</p>
  */
 @Component
 public class JwtUtil {
-    /**
-     * Khóa bí mật dùng để ký và xác thực JWT.
-     * Được lấy từ cấu hình application.yml (mặc định nếu không có sẽ dùng chuỗi dự
-     * phòng).
-     * Yêu cầu độ dài khóa phải đủ lớn (ví dụ >= 256 bits cho thuật toán HS256).
-     */
-    @Value("${jwt.secret:mySecretKey12345678901234567890123456789012345678901234567890}")
-    private String jwtSecret;
+    // ============================================================
+    //  ACCESS TOKEN (gọi API)
+    // ============================================================
+    @Value("${jwt.secret:myAccessSecretKey1234567890123456789012345678901234567890}")
+    private String accessSecret;
+
+    @Value("${jwt.expiration:900}")
+    private Long accessExpiration; // giây
+
+    // ============================================================
+    //  REFRESH TOKEN (chỉ dùng để refresh)
+    // ============================================================
+    @Value("${jwt.refresh.secret:myRefreshSecretKey12345678901234567890123456789012}")
+    private String refreshSecret;
+
+    @Value("${jwt.refresh.expiration:604800}")
+    private Long refreshExpiration; // giây
 
     /**
-     * Thời gian sống của token (tính bằng mili-giây).
-     * Được cấu hình trong application.yml.
+     * Claim {@code type} phân biệt access vs refresh token, tránh dùng nhầm.
      */
-    @Value("${jwt.expiration:3600}")
-    private Long expiration;
+    public static final String CLAIM_TYPE = "type";
+    public static final String CLAIM_ROLE = "role";
+    public static final String CLAIM_FAMILY = "family";
+    public static final String TYPE_ACCESS = "access";
+    public static final String TYPE_REFRESH = "refresh";
 
-    /**
-     * Chuyển đổi chuỗi bí mật (jwtSecret) thành đối tượng SecretKey.
-     * Sử dụng thuật toán HMAC-SHA để tạo khóa mã hóa chuẩn dùng cho thư viện jjwt.
-     * 
-     * @return Đối tượng SecretKey dùng để ký và giải mã token.
-     */
-    private SecretKey getSigningKey() {
-        byte[] keyBytes = jwtSecret.getBytes(StandardCharsets.UTF_8);
-        return Keys.hmacShaKeyFor(keyBytes);
+    // ============================================================
+    //  KEY DERIVATION
+    // ============================================================
+    private SecretKey getAccessSigningKey() {
+        return Keys.hmacShaKeyFor(accessSecret.getBytes(StandardCharsets.UTF_8));
     }
 
-    /**
-     * Tạo ra một JWT token mới cho người dùng sau khi đăng nhập thành công.
-     * 
-     * @param username Tên đăng nhập của người dùng sẽ được lưu vào payload của
-     *                 token.
-     * @return Chuỗi JWT đã được ký.
-     */
-    public String generateToken(String username) {
-        Date now = new Date(); // Khởi tạo thời gian hiện tại
-        Date expiryDate = new Date(now.getTime() + expiration); // hạn hết thời gian
+    private SecretKey getRefreshSigningKey() {
+        return Keys.hmacShaKeyFor(refreshSecret.getBytes(StandardCharsets.UTF_8));
+    }
+
+    // ============================================================
+    //  ACCESS TOKEN
+    // ============================================================
+    public String generateAccessToken(String username, String role) {
+        Date now = new Date();
+        Date exp = new Date(now.getTime() + accessExpiration * 1000);
         return Jwts.builder()
-                .subject(username) // cho username
-                .issuedAt(now) // thoi điểm bắt đầu
-                .expiration(expiryDate) // hạn thời gian
-                .signWith(getSigningKey()) // tạo ra jwt
-                .compact(); //
+                .subject(username)
+                .claim(CLAIM_TYPE, TYPE_ACCESS)
+                .claim(CLAIM_ROLE, role)
+                .issuedAt(now)
+                .expiration(exp)
+                .signWith(getAccessSigningKey())
+                .compact();
     }
 
     /**
-     * Giải mã token và trích xuất thông tin tên đăng nhập (Subject) từ payload.
-     * 
-     * @param token Chuỗi JWT cần giải mã.
-     * @return Tên đăng nhập (username) được lưu trong token.
+     * Parse access token — verify chữ ký + expiration.
+     * @throws BusinessException nếu sai chữ ký, hết hạn, hoặc type != access.
      */
-    public String getUsernameFromToken(String token) {
-        Claims claims = Jwts.parser()
-                .verifyWith(getSigningKey()) // xacs nhận từ khóa đăng ký
-                .build()
-                .parseSignedClaims(token)
-                .getPayload();
-        return claims.getSubject();
+    public Claims parseAccessToken(String token) {
+        Claims claims = parseClaims(token, getAccessSigningKey());
+        validateType(claims, TYPE_ACCESS);
+        return claims;
+    }
+
+    public long getAccessExpirationSeconds() {
+        return accessExpiration;
+    }
+
+    // ============================================================
+    //  REFRESH TOKEN
+    // ============================================================
+    /**
+     * Tạo refresh token có gắn family ID (để tracking rotation chain).
+     */
+    public String generateRefreshToken(String username, String role, String familyId) {
+        Date now = new Date();
+        Date exp = new Date(now.getTime() + refreshExpiration * 1000);
+        return Jwts.builder()
+                .subject(username)
+                .claim(CLAIM_TYPE, TYPE_REFRESH)
+                .claim(CLAIM_ROLE, role)
+                .claim(CLAIM_FAMILY, familyId)
+                .issuedAt(now)
+                .expiration(exp)
+                .signWith(getRefreshSigningKey())
+                .compact();
     }
 
     /**
-     * Xác thực xem JWT token có hợp lệ hay không.
-     * Kiểm tra đối chiếu chữ ký, thời hạn sử dụng và định dạng của token.
-     * 
-     * @param token Chuỗi JWT cần kiểm tra.
-     * @return true nếu token hoàn toàn hợp lệ.
-     * @throws BusinessException Ném ra lỗi nghiệp vụ với mã code tương ứng nếu
-     *                           token bị lỗi (hết hạn, sai chữ ký, v.v.)
+     * Parse refresh token — verify chữ ký + expiration + type.
+     * @throws BusinessException nếu sai chữ ký, hết hạn, hoặc type != refresh.
      */
-    public boolean validateToken(String token) {
+    public Claims parseRefreshToken(String token) {
+        Claims claims = parseClaims(token, getRefreshSigningKey());
+        validateType(claims, TYPE_REFRESH);
+        return claims;
+    }
+
+    public long getRefreshExpirationSeconds() {
+        return refreshExpiration;
+    }
+
+    // ============================================================
+    //  LOW-LEVEL: Parse + verify với key bất kỳ (private)
+    // ============================================================
+    private Claims parseClaims(String token, SecretKey key) {
         try {
-            Jwts.parser()
-                    .verifyWith(getSigningKey())
+            return Jwts.parser()
+                    .verifyWith(key)
                     .build()
-                    .parseSignedClaims(token);
-            return true;
+                    .parseSignedClaims(token)
+                    .getPayload();
         } catch (ExpiredJwtException ex) {
             throw new BusinessException(DomainCode.TOKEN_EXPIRED);
         } catch (SignatureException | MalformedJwtException | UnsupportedJwtException | IllegalArgumentException ex) {
@@ -104,23 +149,86 @@ public class JwtUtil {
         }
     }
 
-    // Lấy thời gian hết hạn
-    public long getExpiration() {
-        return expiration;
+    private void validateType(Claims claims, String expectedType) {
+        Object type = claims.get(CLAIM_TYPE);
+        if (type == null || !expectedType.equals(type.toString())) {
+            throw new BusinessException(DomainCode.UNAUTHORIZED);
+        }
+    }
+
+    // ============================================================
+    //  BACKWARD-COMPATIBLE API (cho code cũ)
+    // ============================================================
+    /** @deprecated dùng {@link #generateAccessToken(String, String)} thay thế. */
+    @Deprecated
+    public String generateToken(String username, String role) {
+        return generateAccessToken(username, role);
     }
 
     /**
-     * Trích xuất token từ HttpServletRequest.
-     * Token được gửi trong header "Authorization" với format: "Bearer <token>"
-     *
-     * @param request HttpServletRequest chứa header Authorization
-     * @return Chuỗi JWT token (đã loại bỏ prefix "Bearer ")
+     * Parse token và trả về Claims. Đã có sẵn để thay thế 4 lần parse lặp lại.
+     * Tự detect loại token dựa vào claim {@code type}.
+     */
+    public Claims getClaimsFromToken(String token) {
+        // Peek claim type trước để chọn key parse đúng
+        // (jjwt sẽ throw SignatureException nếu parse sai key — bắt để thử key khác)
+        try {
+            return parseRefreshToken(token);
+        } catch (BusinessException e) {
+            return parseAccessToken(token);
+        }
+    }
+
+    // ============================================================
+    //  COOKIE / REQUEST HELPERS
+    // ============================================================
+    /**
+     * Trích xuất bearer token từ HttpServletRequest header.
+     * Hỗ trợ cả 2 dạng: "Bearer xxx" hoặc chỉ "xxx".
      */
     public String extractTokenFromRequest(HttpServletRequest request) {
         String bearerToken = request.getHeader("Authorization");
         if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
             return bearerToken.substring(7);
         }
-        return null;
+        return bearerToken == null ? null : bearerToken.trim();
+    }
+
+    // ============================================================
+    //  DEPRECATED — giữ để code cũ không lỗi compile
+    // ============================================================
+    /** @deprecated dùng {@link #parseAccessToken(String)} thay thế. */
+    @Deprecated
+    public String getUsernameFromToken(String token) {
+        return parseAccessToken(token).getSubject();
+    }
+
+    /** @deprecated dùng {@link #parseAccessToken(String)} thay thế. */
+    @Deprecated
+    public String getUserRoleFromToken(String token) {
+        return parseAccessToken(token).get(CLAIM_ROLE).toString();
+    }
+
+    /** @deprecated dùng claim exp trong parseAccessToken thay thế. */
+    @Deprecated
+    public long getExpirationEpochMillisFromToken(String token) {
+        return parseAccessToken(token).getExpiration().getTime();
+    }
+
+    /** @deprecated dùng {@link #parseAccessToken(String)} thay thế. */
+    @Deprecated
+    public boolean validateToken(String token) {
+        try {
+            parseAccessToken(token);
+            return true;
+        } catch (BusinessException e) {
+            throw e; // ném lại để GlobalExceptionHandler xử lý
+        }
+    }
+
+    /** @deprecated dùng {@link #getAccessExpirationSeconds()} thay thế. */
+    @Deprecated
+    public long getExpiration() {
+        return accessExpiration;
     }
 }
