@@ -6,7 +6,7 @@
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
         <version>4.1.0</version>
-        <relativePath/> <!-- lookup parent from repository -->
+        <relativePath/>
     </parent>
     <groupId>com.example</groupId>
     <artifactId>Java_Template</artifactId>
@@ -26,41 +26,89 @@
         <tag/>
         <url/>
     </scm>
+
     <properties>
         <java.version>17</java.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+        <mapstruct.version>1.6.3</mapstruct.version>
+        <lombok-mapstruct-binding.version>0.2.0</lombok-mapstruct-binding.version>
     </properties>
+
     <dependencies>
-<!--        <dependency>-->
-<!--            <groupId>org.springframework.boot</groupId>-->
-<!--            <artifactId>spring-boot-starter-data-jpa</artifactId>-->
-<!--        </dependency>-->
+        <!-- =========================================================
+             Boot 4 tách autoconfigure ra từng module:
+             - webmvc: chỉ xử lý phía server (REST controller).
+             - restclient: cần thiết để có bean RestClient.Builder;
+               nếu KHÔNG có starter này, spring.http.clients.* (timeout)
+               bị bỏ qua im lặng.
+             ========================================================= -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-security</artifactId>
+            <artifactId>spring-boot-starter-webmvc</artifactId>
         </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-restclient</artifactId>
+        </dependency>
+
+        <!--        Jackson JSON (Boot 4 modular: webmvc KHÔNG kèm theo)    -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-json</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-validation</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-webmvc</artifactId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
         </dependency>
-
-        <!--    Jackson JSON (Spring Boot 4.x modular: webmvc KHÔNG kèm Jackson,
-                phải thêm spring-boot-starter-json riêng để JacksonAutoConfiguration
-                tạo bean ObjectMapper cho serialize/deserialize)    -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-json</artifactId>
+            <artifactId>spring-boot-starter-security</artifactId>
         </dependency>
 
-        <!--    OAuth2 Resource Server: xác thực JWT do Keycloak cấp.
-                Spring tự động cấu hình JwtDecoder từ spring.security.oauth2.resourceserver.jwt.*
-                và verify chữ ký bằng Public Key lấy từ Keycloak JWKS endpoint.    -->
+        <!-- =========================================================
+             OAuth2: BE đóng 2 vai trò
+             (1) Resource Server: verify JWT do Keycloak cấp (mỗi service).
+             (2) Client (client_credentials): tự lấy token SERVICE khi
+                 gọi service khác mà không có user-token mượn được
+                 (job/startup/kafka).
+             ========================================================= -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-oauth2-client</artifactId>
+        </dependency>
+
+        <!--        Actuator + tracing + prometheus    -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        <!--        Boot 4: starter này gồm bridge OTel + AUTOCONFIG (wire Tracer + ObservationHandler)
+                      -> mới có traceId. micrometer-tracing-bridge-otel đơn lẻ không đủ vì Boot 4
+                      tách autoconfig ra khỏi actuator.    -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-opentelemetry</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!--        AOP (cần cho LogExecutionAspect)    -->
+        <dependency>
+            <groupId>org.aspectj</groupId>
+            <artifactId>aspectjweaver</artifactId>
         </dependency>
 
         <dependency>
@@ -69,24 +117,44 @@
             <scope>runtime</scope>
             <optional>true</optional>
         </dependency>
-<!--                <dependency>-->
-<!--                    <groupId>org.postgresql</groupId>-->
-<!--                    <artifactId>postgresql</artifactId>-->
-<!--                    <scope>runtime</scope>-->
-<!--                </dependency>-->
+
+        <!--        PostgreSQL JDBC Driver    -->
+<!--        <dependency>-->
+<!--            <groupId>org.postgresql</groupId>-->
+<!--            <artifactId>postgresql</artifactId>-->
+<!--            <scope>runtime</scope>-->
+<!--        </dependency>-->
+
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <optional>true</optional>
         </dependency>
-        <!--        <dependency>-->
-        <!--            <groupId>org.springframework.boot</groupId>-->
-        <!--            <artifactId>spring-boot-starter-data-jpa-test</artifactId>-->
-        <!--            <scope>test</scope>-->
-        <!--        </dependency>-->
+
+        <!--        MapStruct — generate mapper impl compile-time (entity <-> DTO)    -->
+        <dependency>
+            <groupId>org.mapstruct</groupId>
+            <artifactId>mapstruct</artifactId>
+            <version>${mapstruct.version}</version>
+        </dependency>
+
+        <!--        Utility chuỗi/ngày giờ    -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-lang3</artifactId>
+        </dependency>
+
+        <!-- =========================================================
+             Test dependencies
+             ========================================================= -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-security-test</artifactId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webmvc-test</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -96,18 +164,29 @@
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-webmvc-test</artifactId>
+            <artifactId>spring-boot-starter-security-test</artifactId>
             <scope>test</scope>
         </dependency>
 
-        <!--    OAuth2 Resource Server (Keycloak) - JwtDecoder / JwtAuthenticationConverter
-                được Spring Boot auto-config từ spring.security.oauth2.resourceserver.jwt.*   -->
+        <!--        H2 in-memory database cho test    -->
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>test</scope>
+        </dependency>
 
-        <!--        Swagger/OpenAPI 3-->
+        <!--        Swagger/OpenAPI 3    -->
         <dependency>
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
-            <version>3.1.0</version>
+            <version>2.5.0</version>
+        </dependency>
+
+        <!--        JSON log encoder cho prod (logback-spring.xml)    -->
+        <dependency>
+            <groupId>net.logstash.logback</groupId>
+            <artifactId>logstash-logback-encoder</artifactId>
+            <version>8.0</version>
         </dependency>
 
     </dependencies>
@@ -117,6 +196,14 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <excludes>
+                        <exclude>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                        </exclude>
+                    </excludes>
+                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -134,7 +221,22 @@
                                     <groupId>org.projectlombok</groupId>
                                     <artifactId>lombok</artifactId>
                                 </path>
+                                <path>
+                                    <groupId>org.mapstruct</groupId>
+                                    <artifactId>mapstruct-processor</artifactId>
+                                    <version>${mapstruct.version}</version>
+                                </path>
+                                <path>
+                                    <groupId>org.projectlombok</groupId>
+                                    <artifactId>lombok-mapstruct-binding</artifactId>
+                                    <version>${lombok-mapstruct-binding.version}</version>
+                                </path>
                             </annotationProcessorPaths>
+                            <compilerArgs>
+                                <compilerArg>-Amapstruct.defaultComponentModel=spring</compilerArg>
+                                <compilerArg>-Amapstruct.suppressGeneratorTimestamp=true</compilerArg>
+                                <compilerArg>-Amapstruct.suppressGeneratorVersionInfoComment=true</compilerArg>
+                            </compilerArgs>
                         </configuration>
                     </execution>
                     <execution>

@@ -1,8 +1,62 @@
+# ============================================================
+#  Server
+# ============================================================
+server:
+  port: ${SERVER_PORT:8080}
+  servlet:
+    context-path: ${SERVER_CONTEXT_PATH:/admin}
+  shutdown: graceful
+  forward-headers-strategy: framework
+
+# ============================================================
+#  Spring Application
+# ============================================================
 spring:
   application:
-    name: Java_Template
+    name: java_template
+
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+
+  # HttpClient (RestClient) timeout chung cho mọi service khác
+  http:
+    clients:
+      connect-timeout: 5s
+      read-timeout: 30s
+
+  # ============================================================
+  #  Database (PostgreSQL) — bật khi dùng JPA
+  # ============================================================
+  #  datasource:
+  #    url: ${DB_URL:jdbc:postgresql://localhost:5432/java_template}
+  #    username: ${DB_USERNAME:postgres}
+  #    password: ${DB_PASSWORD:postgres}
+  #    driver-class-name: org.postgresql.Driver
+  #    hikari:
+  #      maximum-pool-size: 20
+  #      minimum-idle: 5
+  #      connection-timeout: 60000
+  #      idle-timeout: 300000
+  #      max-lifetime: 1800000
+  #      leak-detection-threshold: 120000
+  #      pool-name: HikariPool-JavaTemplate
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: ${JPA_DDL_AUTO:validate}
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: Asia/Ho_Chi_Minh
+        format_sql: true
+        enable_lazy_load_no_trans: true
+    database: postgresql
+    show-sql: ${JPA_SHOW_SQL:false}
+
   # ============================================================
   #  OAuth2 Resource Server — xác thực JWT do Keycloak cấp
+  #  (Keycloak nguyên bản — KHÔNG đổi)
   # ============================================================
   security:
     oauth2:
@@ -12,11 +66,114 @@ spring:
           issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8180/realms/platform}
           # Fallback rõ ràng nếu Spring không tự detect được JWKS endpoint
           jwk-set-uri: ${KEYCLOAK_JWKS_URI:http://localhost:8180/realms/platform/protocol/openid-connect/certs}
+      # OAuth2 Client (client_credentials) — dùng cho BE-to-BE khi không có user-token
+      client:
+        registration:
+          internal:
+            provider: keycloak
+            client-id: ${KEYCLOAK_CLIENT_ID:java_template_be}
+            client-secret: ${KEYCLOAK_CLIENT_SECRET:change-me}
+            authorization-grant-type: client_credentials
+        provider:
+          keycloak:
+            token-uri: ${KEYCLOAK_TOKEN_URI:http://localhost:8180/realms/platform/protocol/openid-connect/token}
+
+  # ============================================================
+  #  Jackson
+  # ============================================================
+  jackson:
+    default-property-inclusion: non_null
+    time-zone: Asia/Ho_Chi_Minh
+    deserialization:
+      fail-on-unknown-properties: false
+
+# ============================================================
+#  Actuator + Observability
+# ============================================================
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+      base-path: /actuator
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: when_authorized
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+  tracing:
+    sampling:
+      probability: ${TRACE_SAMPLING:1.0}
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+  otlp:
+    metrics:
+      export:
+        enabled: false
+
+# ============================================================
+#  Logging
+# ============================================================
+logging:
+  level:
+    root: INFO
+    com.example.java_template: ${LOG_LEVEL_APP:DEBUG}
+    org.springframework.web: INFO
+    org.springframework.security: INFO
+    org.hibernate.SQL: ${JPA_SHOW_SQL:false}
+  pattern:
+    level: "%5p [req=%X{requestId:-} username=%X{username:-} traceId=%X{traceId:-}]"
+
+# ============================================================
+#  SpringDoc / OpenAPI
+# ============================================================
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha
+    display-request-duration: true
 
 # ============================================================
 #  Cấu hình riêng của app
 # ============================================================
 app:
-  # Đường dẫn gốc của Keycloak (dùng cho redirect logout nếu cần)
+  # Bật/tắt Spring Security tầng filter (true ở prod; false ở local/test nếu cần)
+  security:
+    enabled: ${APP_SECURITY_ENABLED:true}
+    cache:
+      enabled: true
+  # Refresh cache role -> permission (stub mặc định: không gọi được service nào)
+  admin:
+    refresh-ms: 60000
+
+  # Log giới hạn ký tự mỗi body (LogExecutionAspect)
+  log:
+    max-payload-length: 1000
+
+  # HttpClient cho group "internal" (cổng gateway nội bộ)
+  internal:
+    enabled: true
+    base-url: ${INTERNAL_BASE_URL:http://localhost:9999}
+
+  # Keycloak base URL (giữ nguyên theo hệ thống hiện tại)
   keycloak:
     base-url: ${KEYCLOAK_BASE_URL:http://localhost:8180}
+
+# ============================================================
+#  Mapping cho @HttpExchange client
+# ============================================================
+service:
+  admin-service:
+    context-path: admin
+    endpoints:
+      get-permission: /api/v1/role-permission/all

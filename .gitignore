@@ -13,6 +13,16 @@ target/
 .springBeans
 .sts4-cache
 
+### Env files (chứa secrets: DB password, Keycloak URL...) ###
+.env
+.env.local
+.env.*.local
+
+### Logs ###
+logs/
+*.log
+
+
 ### IntelliJ IDEA ###
 .idea
 *.iws

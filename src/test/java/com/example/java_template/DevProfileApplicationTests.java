@@ -11,20 +11,15 @@ import org.springframework.test.context.ActiveProfiles;
 import static org.mockito.Mockito.mock;
 
 /**
- * Verify Spring context khởi tạo thành công (không lỗi bean).
+ * Verify Spring context khởi động được với profile {@code dev}
+ * (H2 in-memory + security tắt theo application-dev.yaml).
  *
- * <p>Test chạy với profile {@code test}, sử dụng:</p>
- * <ul>
- *   <li>H2 in-memory database (thay cho PostgreSQL)</li>
- *   <li>Mock {@link JwtDecoder} để không phụ thuộc Keycloak</li>
- *   <li>Issuer/JWK URI giả — chỉ để JwtDecoder bean không crash khi khởi tạo</li>
- * </ul>
- *
- * <p>Cấu hình DB & Keycloak cho profile test nằm trong {@code application-test.yaml}.</p>
+ * <p>Mục tiêu: bắt lỗi "Failed to configure a DataSource" sớm trong CI
+ * mà không cần dựng PostgreSQL thật.</p>
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@ActiveProfiles("test")
-class JavaTemplateApplicationTests {
+@ActiveProfiles("dev")
+class DevProfileApplicationTests {
 
     @Test
     void contextLoads() {

@@ -1,0 +1,61 @@
+# ============================================================
+#  application-dev.yaml — profile mặc định cho local dev
+#  CHẠY KHÔNG CẦN DATABASE THẬT.
+#
+#  Cách hoạt động:
+#    - app.database.enabled=false  →  không khởi tạo JPA/JDBC,
+#      JwtAuditingConfig không kích hoạt.
+#    - spring.autoconfigure.exclude  →  tắt hẳn các DataSource/JPA
+#      autoconfig để không ném lỗi "Failed to configure a DataSource".
+#
+#  Khi nào bật DB:
+#    - Khi dự án có @Entity / @Repository đầu tiên cần lưu DB,
+#      đổi app.database.enabled=true và bật lại spring.datasource
+#      trong application.yaml (hoặc tạo application-<tên>.yaml).
+# ============================================================
+
+spring:
+  # ----------------------------------------------------------
+  #  TẮT DB: loại bỏ tất cả autoconfig liên quan DataSource/JPA
+  #  (list đầy đủ scan từ spring-boot-autoconfigure 4.1.0)
+  # ----------------------------------------------------------
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration
+      - org.springframework.boot.jdbc.autoconfigure.DataSourceInitializationAutoConfiguration
+      - org.springframework.boot.jdbc.autoconfigure.DataSourceTransactionManagerAutoConfiguration
+      - org.springframework.boot.jdbc.autoconfigure.JdbcClientAutoConfiguration
+      - org.springframework.boot.jdbc.autoconfigure.JdbcTemplateAutoConfiguration
+      - org.springframework.boot.jdbc.autoconfigure.XADataSourceAutoConfiguration
+      - org.springframework.boot.jdbc.autoconfigure.health.DataSourceHealthContributorAutoConfiguration
+      - org.springframework.boot.jdbc.autoconfigure.metrics.DataSourcePoolMetricsAutoConfiguration
+      - org.springframework.boot.data.jpa.autoconfigure.DataJpaRepositoriesAutoConfiguration
+
+  # Tắt auth khi dev local — đỡ phải dựng Keycloak + cấp token mỗi lần test.
+  # (Mọi request đều permitAll, nhưng SecurityContext + MdcLoggingFilter vẫn hoạt động,
+  # SecurityUtil.getCurrentUsername() trả về "anonymous".)
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:9999/realms/platform}
+          jwk-set-uri: ${KEYCLOAK_JWKS_URI:http://localhost:9999/realms/platform/protocol/openid-connect/certs}
+
+logging:
+  level:
+    com.example.java_template: DEBUG
+    org.springframework.security: INFO
+
+app:
+  # ----------------------------------------------------------
+  #  Cờ bật/tắt toàn bộ tầng DB ở app-level
+  #  - JpaAuditingConfig chỉ load khi true (mặc định true).
+  #  - Dev override false để chạy không cần PostgreSQL.
+  # ----------------------------------------------------------
+  database:
+    enabled: ${APP_DATABASE_ENABLED:false}
+
+  security:
+    enabled: ${APP_SECURITY_ENABLED:false}   # dev: tắt filter chain để test endpoint dễ
+    cache:
+      enabled: true
