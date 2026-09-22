@@ -1,0 +1,46 @@
+
+services:
+  # Database lưu trữ cấu hình & dữ liệu của Keycloak
+  keycloak-db:
+    image: postgres:16-alpine
+    container_name: java_template_keycloak_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: keycloak_secret
+    volumes:
+      - keycloak_db_data:/var/lib/postgresql/data
+    networks:
+      - template-network
+
+  # Keycloak SSO Server (tự động import realm cấu hình sẵn khi khởi động)
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0.0
+    container_name: java_template_keycloak
+    restart: unless-stopped
+    command: start-dev --import-realm
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://keycloak-db:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: keycloak_secret
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_HEALTH_ENABLED: "true"
+      KC_METRICS_ENABLED: "true"
+    ports:
+      - "8180:8080"
+    volumes:
+      - ./docker/keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
+    depends_on:
+      - keycloak-db
+    networks:
+      - template-network
+
+volumes:
+  keycloak_db_data:
+
+networks:
+  template-network:
+    driver: bridge

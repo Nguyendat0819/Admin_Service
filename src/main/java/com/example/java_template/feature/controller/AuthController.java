@@ -2,89 +2,76 @@ package com.example.java_template.feature.controller;
 
 import com.example.java_template.common.response.ApiResponse;
 import com.example.java_template.common.response.ApiResponseFactory;
-import com.example.java_template.common.security.CookieUtil;
-import com.example.java_template.common.util.JwtUtil;
-import com.example.java_template.feature.controller.api.AuthApi;
-import com.example.java_template.feature.model.request.LoginRequest;
-import com.example.java_template.feature.model.response.LoginResponse;
-import com.example.java_template.feature.model.response.TokenPair;
-import com.example.java_template.feature.service.AuthService;
-import lombok.AccessLevel;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import lombok.experimental.FieldDefaults;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
- * AuthController xử lý cookie chứa refresh token.
+ * Controller xác thực — cung cấp thông tin user hiện tại từ JWT đã xác thực.
  *
- * <h3>Quy ước cookie:</h3>
- * <ul>
- *   <li>Refresh token KHÔNG nằm trong response body</li>
- *   <li>Được set vào HttpOnly cookie (JS không đọc được)</li>
- *   <li>Cookie tự động gửi kèm mỗi request tới backend</li>
- *   <li>Browser tự xóa khi Max-Age = 0 (logout)</li>
- * </ul>
+ * <p>Frontend gọi {@code GET /api/auth/me} sau khi đã đăng nhập SSO Keycloak
+ * để lấy user info (username, email, roles).</p>
  *
- * <h3>Client chỉ nhận access token trong body.</h3>
+ * <p>Đăng nhập/đăng xuất không qua backend — hoàn toàn do Keycloak xử lý
+ * (frontend redirect sang Keycloak, nhận token về).</p>
  */
 @RestController
+@RequestMapping("/api/auth")
 @RequiredArgsConstructor
-@FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
-public class AuthController implements AuthApi {
+@Tag(name = "Auth", description = "Xác thực — lấy thông tin user hiện tại")
+public class AuthController {
 
-    AuthService authService;
-    ApiResponseFactory apiResponseFactory;
-    JwtUtil jwtUtil;
-    CookieUtil cookieUtil;
+    private final ApiResponseFactory apiResponseFactory;
 
-    // ============================================================
-    //  LOGIN — cấp access + set refresh cookie
-    // ============================================================
-    @Override
-    public ApiResponse<LoginResponse> login(LoginRequest request, HttpServletResponse response) {
-        TokenPair pair = authService.login(request);
+    @Operation(
+            summary = "Lấy thông tin user hiện tại",
+            description = "Trả về username, email, userId (Keycloak sub), roles (realm + client) từ JWT đã xác thực. "
+                    + "Cần có Authorization: Bearer <access_token> hợp lệ."
+    )
+    @GetMapping("/me")
+    public ApiResponse<Map<String, Object>> getCurrentUser(@AuthenticationPrincipal Jwt jwt) {
+        Map<String, Object> userInfo = new LinkedHashMap<>();
 
-        // Set refresh token vào HttpOnly cookie
-        cookieUtil.setRefreshTokenCookie(response, pair.getRefreshToken(), jwtUtil.getRefreshExpirationSeconds());
+        // Keycloak sub = UUID của user trong Keycloak
+        userInfo.put("userId", jwt.getSubject());
 
-        // Body chỉ chứa access token
-        return apiResponseFactory.success(pair.toLoginResponse());
-    }
+        // Các claim OpenID chuẩn
+        userInfo.put("username", jwt.getClaimAsString("preferred_username"));
+        userInfo.put("email", jwt.getClaimAsString("email"));
+        userInfo.put("firstName", jwt.getClaimAsString("given_name"));
+        userInfo.put("lastName", jwt.getClaimAsString("family_name"));
 
-    // ============================================================
-    //  REFRESH — đọc refresh từ cookie, rotate, set cookie mới
-    // ============================================================
-    @Override
-    public ApiResponse<LoginResponse> refreshToken(HttpServletRequest request, HttpServletResponse response) {
-        String refreshToken = cookieUtil.getRefreshTokenFromCookie(request);
-        if (refreshToken == null || refreshToken.isBlank()) {
-            throw new RuntimeException("Refresh token không tồn tại (chưa login hoặc cookie bị xóa)");
+        // Realm roles: realm_access.roles  →  ["ADMIN", "USER"]
+        List<String> roles = new ArrayList<>();
+        Map<String, Object> realmAccess = jwt.getClaimAsMap("realm_access");
+        if (realmAccess != null && realmAccess.get("roles") instanceof List<?> rr) {
+            rr.forEach(r -> roles.add(r.toString()));
         }
 
-        TokenPair newPair = authService.refresh(refreshToken);
+        // Client roles: resource_access.Auth.roles
+        Map<String, Object> resourceAccess = jwt.getClaimAsMap("resource_access");
+        if (resourceAccess != null) {
+            resourceAccess.forEach((clientId, access) -> {
+                if (access instanceof Map<?, ?> ca && ca.get("roles") instanceof List<?> cr) {
+                    cr.forEach(r -> roles.add(r.toString()));
+                }
+            });
+        }
+        userInfo.put("roles", roles);
 
-        // Set refresh token MỚI vào cookie (token cũ đã bị rotate)
-        cookieUtil.setRefreshTokenCookie(response, newPair.getRefreshToken(), jwtUtil.getRefreshExpirationSeconds());
+        // Thời điểm hết hạn token
+        userInfo.put("tokenExpiresAt", jwt.getExpiresAt());
 
-        return apiResponseFactory.success(newPair.toLoginResponse());
-    }
-
-    // ============================================================
-    //  LOGOUT — revoke refresh + clear cookie
-    // ============================================================
-    @Override
-    public ApiResponse<Void> logout(HttpServletRequest request, HttpServletResponse response) {
-        String refreshToken = cookieUtil.getRefreshTokenFromCookie(request);
-
-        // Revoke refresh token trong Redis
-        authService.logout(refreshToken);
-
-        // Clear cookie (Max-Age=0)
-        cookieUtil.clearRefreshTokenCookie(response);
-
-        return apiResponseFactory.success(null);
+        return apiResponseFactory.success(userInfo);
     }
 }

@@ -55,10 +55,12 @@
             <artifactId>spring-boot-starter-json</artifactId>
         </dependency>
 
-        <!--    Redis (lưu refresh token + rotation + family tracking)    -->
+        <!--    OAuth2 Resource Server: xác thực JWT do Keycloak cấp.
+                Spring tự động cấu hình JwtDecoder từ spring.security.oauth2.resourceserver.jwt.*
+                và verify chữ ký bằng Public Key lấy từ Keycloak JWKS endpoint.    -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-data-redis</artifactId>
+            <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
         </dependency>
 
         <dependency>
@@ -98,28 +100,10 @@
             <scope>test</scope>
         </dependency>
 
-        <!--    token    -->
-<!--        Đây là API/interface mà code Java của bạn trực tiếp sử dụng. cung cấp api -->
-        <dependency>
-            <groupId>io.jsonwebtoken</groupId>
-            <artifactId>jjwt-api</artifactId>
-            <version>0.12.6</version>
-        </dependency>
-<!--        Đây là phần triển khai thực tế phía sau API. sau khi cung cấp api thì thực hiện logic-->
-        <dependency>
-            <groupId>io.jsonwebtoken</groupId>
-            <artifactId>jjwt-impl</artifactId>
-            <version>0.12.6</version>
-            <scope>runtime</scope>
-        </dependency>
-<!--        Thằng này dùng Jackson để xử lý JSON bên trong JWT.-->
-        <dependency>
-            <groupId>io.jsonwebtoken</groupId>
-            <artifactId>jjwt-jackson</artifactId>
-            <version>0.12.6</version>
-            <scope>runtime</scope>
-        </dependency>
-<!--        Swagger/OpenAPI 3-->
+        <!--    OAuth2 Resource Server (Keycloak) - JwtDecoder / JwtAuthenticationConverter
+                được Spring Boot auto-config từ spring.security.oauth2.resourceserver.jwt.*   -->
+
+        <!--        Swagger/OpenAPI 3-->
         <dependency>
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
