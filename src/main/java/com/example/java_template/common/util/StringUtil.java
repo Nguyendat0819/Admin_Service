@@ -62,4 +62,33 @@ public final class StringUtil {
         String timestamp = LocalDateTime.now().format(FILE_TIME_FORMAT);
         return normalized + "_" + timestamp + ext;
     }
+
+
+    // Cắt 2 đầu các ký tự trắng/ẩn: khoảng trắng, NBSP (U+00A0), zero-width (U+200B), BOM (U+FEFF), ký tự điều khiển.
+    public static String stripInvisible(String s) {
+        if (s == null) return null;
+        int start = 0;
+        int end = s.length();
+        while (start < end) {
+            int cp = s.codePointAt(start);
+            if (!isInvisible(cp)) break;
+            start += Character.charCount(cp);
+        }
+        while (end > start) {
+            int cp = s.codePointBefore(end);
+            if (!isInvisible(cp)) break;
+            end -= Character.charCount(cp);
+        }
+        return s.substring(start, end);
+    }
+
+    // Ký tự không nhìn thấy: ký tự điều khiển, khoảng trắng các loại và ký tự định dạng như zero-width.
+    private static boolean isInvisible(int cp) {
+        return cp <= ' '
+                || Character.isWhitespace(cp)
+                || Character.isSpaceChar(cp)
+                || Character.getType(cp) == Character.FORMAT;
+    }
+
+
 }

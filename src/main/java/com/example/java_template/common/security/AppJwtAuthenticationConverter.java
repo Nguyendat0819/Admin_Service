@@ -16,30 +16,20 @@ import java.util.Set;
 import static com.example.java_template.common.util.Const.ROLE_PREFIX;
 import static com.example.java_template.common.util.SecurityUtil.getRolesFromJwt;
 
-/**
- * Chuyển {@link Jwt} của Keycloak thành {@link AbstractAuthenticationToken}: đọc roles +
- * permission theo role (qua {@link PermissionResolver}) rồi gắn vào {@code authorities}.
- *
- * <p>Đây là điểm QUYẾT ĐỊNH user có những quyền gì — chạy 1 lần mỗi request tại filter,
- * sau đó {@code @PreAuthorize} chỉ đọc lại để so khớp.</p>
- */
 @Component
 @RequiredArgsConstructor
-public class KeycloakJwtAuthenticationConverter implements Converter<Jwt, AbstractAuthenticationToken> {
+public class AppJwtAuthenticationConverter implements Converter<Jwt, AbstractAuthenticationToken> {
 
     private final PermissionResolver permissionResolver;
 
     @Override
     public AbstractAuthenticationToken convert(Jwt jwt) {
         Collection<GrantedAuthority> authorities = new ArrayList<>();
-
-        // roles
         Set<String> roles = getRolesFromJwt(jwt);
-        roles.forEach(role -> authorities.add(new SimpleGrantedAuthority(ROLE_PREFIX + role)));
 
-        // permissions (look-up từ role qua cache)
+        roles.forEach(role -> authorities.add(new SimpleGrantedAuthority(ROLE_PREFIX + role)));
         permissionResolver.permissionsOf(roles)
-                .forEach(p -> authorities.add(new SimpleGrantedAuthority(p)));
+                .forEach(permission -> authorities.add(new SimpleGrantedAuthority(permission)));
 
         return new JwtAuthenticationToken(jwt, authorities);
     }

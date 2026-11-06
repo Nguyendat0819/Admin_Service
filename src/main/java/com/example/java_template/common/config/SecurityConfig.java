@@ -1,6 +1,6 @@
 package com.example.java_template.common.config;
 
-import com.example.java_template.common.security.KeycloakJwtAuthenticationConverter;
+import com.example.java_template.common.security.AppJwtAuthenticationConverter;
 import com.example.java_template.common.security.RestSecurityExceptionHandler;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -19,21 +19,18 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.List;
 
-/**
- * Cấu hình bảo mật tầng FILTER.
- *
- * <p>Mọi request đi qua chuỗi filter này TRƯỚC khi tới controller:
- * verify JWT -> dựng Authentication (kèm roles/permission) -> quyết định cho qua hay chặn.</p>
- */
-@Configuration
-@EnableWebSecurity
-@EnableMethodSecurity
+// SecurityConfig — cấu hình bảo mật tầng FILTER.
+// Mọi request đi qua chuỗi filter này TRƯỚC khi tới controller:
+// verify JWT -> dựng Authentication (kèm roles/permission) -> quyết định cho qua hay chặn.
+@Configuration               // class định nghĩa bean
+@EnableWebSecurity           // bật Spring Security web -> cho phép tự định nghĩa SecurityFilterChain
+@EnableMethodSecurity        // bật @PreAuthorize / @PostAuthorize (không có -> các annotation đó bị bỏ qua)
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    private final KeycloakJwtAuthenticationConverter keycloakJwtAuthenticationConverter;
+    private final AppJwtAuthenticationConverter appJwtAuthenticationConverter;
     private final RestSecurityExceptionHandler restSecurityExceptionHandler;
-
+    private final CorsProperties  corsProperties;
     @Value("${app.security.enabled:true}")
     private boolean securityEnabled;
 
@@ -61,12 +58,13 @@ public class SecurityConfig {
             http.authorizeHttpRequests(auth -> auth.anyRequest().permitAll());
             return http.build();
         }
-
+        // Rule phân quyền theo URL: khai báo cụ thể trước, anyRequest() để cuối làm mặc định.
         http.authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/api/auth/login").permitAll()
                         .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2
-                        .jwt(jwt -> jwt.jwtAuthenticationConverter(keycloakJwtAuthenticationConverter))
+                        .jwt(jwt -> jwt.jwtAuthenticationConverter(appJwtAuthenticationConverter))
                         .authenticationEntryPoint(restSecurityExceptionHandler)
                         .accessDeniedHandler(restSecurityExceptionHandler))
                 .exceptionHandling(ex -> ex
@@ -76,13 +74,11 @@ public class SecurityConfig {
         return http.build();
     }
 
+    // Khai báo CORS: origin/method/header nào được phép gọi cross-origin.
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of(
-                "http://localhost:4200",
-                "http://localhost:8080"
-        ));
+        configuration.setAllowedOrigins(corsProperties.getAllowedOrigins());
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);

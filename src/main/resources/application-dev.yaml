@@ -31,15 +31,6 @@ spring:
       - org.springframework.boot.jdbc.autoconfigure.metrics.DataSourcePoolMetricsAutoConfiguration
       - org.springframework.boot.data.jpa.autoconfigure.DataJpaRepositoriesAutoConfiguration
 
-  # Tắt auth khi dev local — đỡ phải dựng Keycloak + cấp token mỗi lần test.
-  # (Mọi request đều permitAll, nhưng SecurityContext + MdcLoggingFilter vẫn hoạt động,
-  # SecurityUtil.getCurrentUsername() trả về "anonymous".)
-  security:
-    oauth2:
-      resourceserver:
-        jwt:
-          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:9999/realms/platform}
-          jwk-set-uri: ${KEYCLOAK_JWKS_URI:http://localhost:9999/realms/platform/protocol/openid-connect/certs}
 
 logging:
   level:
@@ -47,6 +38,8 @@ logging:
     org.springframework.security: INFO
 
 app:
+  jwt:
+    secret-base64: ${JWT_SECRET_BASE64:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=}
   # ----------------------------------------------------------
   #  Cờ bật/tắt toàn bộ tầng DB ở app-level
   #  - JpaAuditingConfig chỉ load khi true (mặc định true).
@@ -56,6 +49,6 @@ app:
     enabled: ${APP_DATABASE_ENABLED:false}
 
   security:
-    enabled: ${APP_SECURITY_ENABLED:false}   # dev: tắt filter chain để test endpoint dễ
+    enabled: ${APP_SECURITY_ENABLED:true}
     cache:
       enabled: true

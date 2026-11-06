@@ -3,7 +3,9 @@ package com.example.java_template.feature.controller;
 import com.example.java_template.common.response.ApiResponse;
 import com.example.java_template.common.response.ApiResponseFactory;
 import com.example.java_template.feature.controller.api.AuthApi;
+import com.example.java_template.feature.model.request.AuthLoginRequest;
 import com.example.java_template.feature.model.response.AuthResponse;
+import com.example.java_template.feature.model.response.AuthTokenResponse;
 import com.example.java_template.feature.service.AuthService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -16,6 +18,11 @@ public class AuthController implements AuthApi {
 
     private final ApiResponseFactory apiResponseFactory;
     private final AuthService authService;
+
+    @Override
+    public ApiResponse<AuthTokenResponse> login(AuthLoginRequest request) {
+        return apiResponseFactory.success(authService.login(request));
+    }
 
     @Override
     public ApiResponse<AuthResponse> getCurrentUser(@AuthenticationPrincipal Jwt jwt) {

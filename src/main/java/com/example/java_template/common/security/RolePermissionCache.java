@@ -16,7 +16,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Stub {@link PermissionResolver}: trả tập rỗng theo mặc định. Mục đích cho phép
- * {@link KeycloakJwtAuthenticationConverter} khởi động mà không cần triển khai
+ * {@link AppJwtAuthenticationConverter} khởi động mà không cần triển khai
  * cache thật — đủ để dev local / chạy test.
  *
  * <h3>Nâng cấp lên cache thật</h3>

@@ -10,22 +10,21 @@ spring:
     driver-class-name: org.h2.Driver
 
   jpa:
+    database: h2
     hibernate:
       ddl-auto: create-drop
     show-sql: false
-    properties:
-      hibernate:
-        dialect: org.hibernate.dialect.H2Dialect
 
-  security:
-    oauth2:
-      resourceserver:
-        jwt:
-          issuer-uri: http://localhost:9999/realms/test
-          jwk-set-uri: http://localhost:9999/realms/test/protocol/openid-connect/certs
 
 logging:
   level:
     root: WARN
     com.example.java_template: INFO
     org.hibernate.SQL: OFF
+    org.hibernate.orm.deprecation: ERROR
+
+app:
+  jwt:
+    secret-base64: MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
+  security:
+    enabled: true

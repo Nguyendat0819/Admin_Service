@@ -11,8 +11,6 @@ public final class Const {
     }
 
     // ---- JWT / Security claims ----
-    public static final String REALM_ACCESS = "realm_access";
-    public static final String RESOURCE_ACCESS = "resource_access";
     public static final String ROLES = "roles";
     public static final String ROLE_PREFIX = "ROLE_";
     public static final String PREFERRED_USERNAME = "preferred_username";

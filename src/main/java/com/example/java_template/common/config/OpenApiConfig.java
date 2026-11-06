@@ -27,7 +27,7 @@ public class OpenApiConfig {
                 .info(new Info()
                         .title("Java Template API")
                         .version("v1.0.0")
-                        .description("REST API backend template — Spring Boot 4.x + OAuth2 Resource Server (Keycloak)")
+                        .description("REST API backend template — Spring Boot 4.x + JWT authentication")
                         .contact(new Contact()
                                 .name("Backend Team")
                                 .email("backend@example.com"))

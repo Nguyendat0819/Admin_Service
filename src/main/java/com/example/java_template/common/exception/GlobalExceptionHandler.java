@@ -98,7 +98,7 @@ public class GlobalExceptionHandler  {
         log.error("handleAll:{}",e.getMessage());
         ApiResponse<?> body = environment.matchesProfiles("prod") // khi dùng tron môi trường product
                 ? apiResponseFactory.error(DomainCode.INTERNAL_ERROR) // trả về lỗi hệ thống tránh rò gỉ dữ liệu
-                : apiResponseFactory.of(DomainCode.INTERNAL_ERROR,rootCause(e),null);
+                : apiResponseFactory.of(DomainCode.INTERNAL_ERROR,rootCause(e),(Object) null);
         return ResponseEntity
                 .status(DomainCode.INTERNAL_ERROR.getHttpStatus())
                 .body(body);

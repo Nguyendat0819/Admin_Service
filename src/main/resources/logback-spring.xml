@@ -28,7 +28,7 @@
     <!-- ============================================================
          Profile-specific configs
          ============================================================ -->
-    <springProfile name="dev | default">
+    <springProfile name="dev | default | test">
         <root level="INFO">
             <appender-ref ref="CONSOLE"/>
         </root>
