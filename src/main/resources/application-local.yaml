@@ -125,8 +125,11 @@ springdoc:
 # ============================================================
 app:
   jwt:
+    # đơn vị phát hành (Issuer) của token <=> claim iss
     issuer: ${JWT_ISSUER:java-template}
+    # Thời gian sống (Time To Live - TTL) của Access Token
     access-token-ttl: ${JWT_ACCESS_TOKEN_TTL:15m}
+    # Khóa bí mật (Secret Key) được mã hóa dưới định dạng Base64
     secret-base64: ${JWT_SECRET_BASE64}
   # Bật xác thực JWT; có thể tắt riêng bằng APP_SECURITY_ENABLED=false.
   security:

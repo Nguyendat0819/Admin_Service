@@ -35,6 +35,11 @@ public enum DomainCode {
     TOKEN_EXPIRED("TEM-406", HttpStatus.UNAUTHORIZED, "Phiên đăng nhập đã hết hạn"),
     CONFLICT("TEM-407", HttpStatus.CONFLICT, "Dữ liệu đã tồn tại hoặc đang xung đột: {}"),
 
+    // Mã lỗi liên quan tới đăng nhập và đăng ký
+    INVALID_CREDENTIALS("TEM-408", HttpStatus.UNAUTHORIZED, "Tên đăng nhập hoặc mật khẩu không đúng"),
+    USERNAME_ALREADY_EXISTS("TEM-409", HttpStatus.CONFLICT, "Tên đăng nhập đã tồn tại"),
+    EMAIL_ALREADY_EXISTS("TEM-410", HttpStatus.CONFLICT, "Email đã được đăng ký"),
+
     //  Lỗi server / service ngoài (5xx)
     INTERNAL_ERROR("TEM-500", HttpStatus.INTERNAL_SERVER_ERROR, "Lỗi hệ thống, vui lòng thử lại sau"),
     EXTERNAL_SERVICE_ERROR("TEM-502", HttpStatus.BAD_GATEWAY, "Lỗi khi gọi dịch vụ ngoài: {}"),

@@ -22,7 +22,7 @@ import java.util.Optional;
  *
  * <p><b>Bật/tắt theo property</b> {@code app.database.enabled} (mặc định {@code true}).
  * Khi dev chưa cấu hình DB thật, set {@code app.database.enabled=false} trong
- * {@code application-dev.yaml} để bean này không khởi tạo (đỡ phải kéo theo
+ * {@code application-prod.yaml} để bean này không khởi tạo (đỡ phải kéo theo
  * toàn bộ JPA autoconfig).</p>
  */
 @Configuration

@@ -1,0 +1,131 @@
+# Cấu hình nền cho mọi profile; application-{profile}.yaml có thể ghi đè từng giá trị.
+# Profile prod hiện chỉ giúp chạy mẫu không cần database, chưa phải cấu hình triển khai thật.
+# Khi triển khai, cần cấu hình database và cung cấp JWT_SECRET_BASE64 an toàn qua môi trường.
+
+server:
+  # Cho phép đổi cổng và tiền tố URL mà không sửa file cấu hình.
+  port: ${SERVER_PORT:8080}
+  servlet:
+    context-path: ${SERVER_CONTEXT_PATH:/admin}
+  # Chờ các request đang xử lý hoàn tất trước khi dừng ứng dụng.
+  shutdown: graceful
+  # Tin cậy header proxy để tạo URL và ghi nhận địa chỉ client đúng khi chạy sau reverse proxy.
+  forward-headers-strategy: framework
+
+spring:
+  application:
+    name: java_template
+  profiles:
+    # Chỉ dùng khi chưa đặt SPRING_PROFILES_ACTIVE; biến môi trường có thể chọn profile khác.
+    default: ${SPRING_PROFILES_DEFAULT:prod}
+  http:
+    clients:
+      # Giới hạn thời gian chờ để lời gọi REST không giữ tài nguyên vô hạn.
+      connect-timeout: ${HTTP_CONNECT_TIMEOUT:5s}
+      read-timeout: ${HTTP_READ_TIMEOUT:30s}
+  jpa:
+    # Tránh giữ EntityManager suốt thời gian render response; truy vấn phải nằm trong service.
+    open-in-view: false
+    hibernate:
+      # validate chỉ kiểm tra schema có sẵn, không tự tạo hoặc sửa bảng.
+      ddl-auto: ${JPA_DDL_AUTO:validate}
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: Asia/Ho_Chi_Minh
+        format_sql: ${JPA_FORMAT_SQL:false}
+    database: postgresql
+    show-sql: ${JPA_SHOW_SQL:false}
+  jackson:
+    # Bỏ thuộc tính null khỏi JSON và dùng cùng múi giờ khi đọc/ghi thời gian.
+    default-property-inclusion: non_null
+    time-zone: Asia/Ho_Chi_Minh
+    deserialization:
+      # Cho phép client gửi thêm field chưa được DTO hiện tại khai báo.
+      fail-on-unknown-properties: false
+
+management:
+  # Các endpoint quản trị ứng dụng; chỉ mở nhóm cần cho kiểm tra sức khỏe và giám sát.
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+      base-path: /actuator
+  endpoint:
+    health:
+      probes:
+        # Cung cấp liveness/readiness probe cho môi trường chạy container.
+        enabled: true
+      # Không công khai thông tin chi tiết sức khỏe cho request chưa được cấp quyền.
+      show-details: when_authorized
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+  tracing:
+    sampling:
+      # Tỷ lệ request được ghi trace; giảm giá trị này khi lưu lượng thực tế lớn.
+      probability: ${TRACE_SAMPLING:1.0}
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+  otlp:
+    metrics:
+      export:
+        enabled: false
+
+logging:
+  # Điều chỉnh log tổng thể, package ứng dụng và các thư viện thường dùng để chẩn đoán.
+  level:
+    root: INFO
+    com.example.java_template: ${LOG_LEVEL_APP:INFO}
+    org.springframework.web: INFO
+    org.springframework.security: INFO
+    org.hibernate.SQL: ${HIBERNATE_SQL_LOG_LEVEL:WARN}
+  pattern:
+    # Các giá trị MDC giúp nối log với request, người dùng và trace tương ứng.
+    level: "%5p [req=%X{requestId:-} username=%X{username:-} traceId=%X{traceId:-}]"
+
+springdoc:
+  # Đường dẫn tài liệu OpenAPI và giao diện Swagger UI.
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha
+    display-request-duration: true
+
+app:
+  jwt:
+    # Tên bên phát hành token.
+    issuer: ${JWT_ISSUER:java-template}
+    # Thời hạn access token tính bằng giây, khớp kiểu long trong JwtProperties.
+    access-token-ttl: ${JWT_ACCESS_TOKEN_TTL:900}
+  security:
+    # Cho phép bật/tắt kiểm tra bảo mật và cache quyền bằng cấu hình riêng.
+    enabled: ${APP_SECURITY_ENABLED:true}
+    cache:
+      enabled: ${APP_SECURITY_CACHE_ENABLED:true}
+  admin:
+    # Chu kỳ làm mới dữ liệu quản trị, tính bằng mili giây.
+    refresh-ms: ${APP_ADMIN_REFRESH_MS:60000}
+  log:
+    # Giới hạn phần payload được ghi log để tránh log quá lớn hoặc chứa quá nhiều dữ liệu.
+    max-payload-length: ${APP_LOG_MAX_PAYLOAD_LENGTH:1000}
+  internal:
+    # URL gốc của service nội bộ; client gọi service sẽ ghép URL này với endpoint tương ứng.
+    enabled: ${APP_INTERNAL_ENABLED:true}
+    base-url: ${INTERNAL_BASE_URL:http://localhost:9999}
+  cors:
+    # Origin frontend được phép gọi API; nhiều origin phân tách bằng dấu phẩy.
+    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:4200}
+
+service:
+  # Endpoint của admin-service được các phần cấu hình client nội bộ dùng làm hợp đồng gọi API.
+  admin-service:
+    context-path: admin
+    endpoints:
+      get-permission: /api/v1/role-permission/all

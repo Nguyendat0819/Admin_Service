@@ -27,7 +27,7 @@ import java.util.Locale;
  * Cấu hình các quy tắc Jackson dùng chung cho dữ liệu JSON của ứng dụng.
  *
  * <p>Chuỗi được xử lý bởi {@code CleanStringDeserializer}; ngày giờ dùng format cố định.
- * Cấu hình khác (null inclusion, timezone, fail-on-unknown) đặt trong {@code application.yaml}
+ * Cấu hình khác (null inclusion, timezone, fail-on-unknown) đặt trong {@code application-local.yaml}
  * dưới khối {@code spring.jackson.*}.</p>
  */
 @Configuration

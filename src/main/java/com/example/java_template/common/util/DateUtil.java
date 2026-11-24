@@ -14,7 +14,7 @@ import java.util.Date;
 
 /**
  * Tiện ích format/parse ngày giờ.
- * <p>Múi giờ mặc định: {@code Asia/Ho_Chi_Minh} — trùng cấu hình trong {@code application.yaml}.</p>
+ * <p>Múi giờ mặc định: {@code Asia/Ho_Chi_Minh} — trùng cấu hình trong {@code application-local.yaml}.</p>
  */
 public final class DateUtil {
 

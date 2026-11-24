@@ -1,5 +1,5 @@
 # ============================================================
-#  application-dev.yaml — profile mặc định cho local dev
+#  application-prod.yaml — profile mặc định cho local dev
 #  CHẠY KHÔNG CẦN DATABASE THẬT.
 #
 #  Cách hoạt động:
@@ -11,7 +11,7 @@
 #  Khi nào bật DB:
 #    - Khi dự án có @Entity / @Repository đầu tiên cần lưu DB,
 #      đổi app.database.enabled=true và bật lại spring.datasource
-#      trong application.yaml (hoặc tạo application-<tên>.yaml).
+#      trong application-local.yaml (hoặc tạo application-<tên>.yaml).
 # ============================================================
 
 spring:

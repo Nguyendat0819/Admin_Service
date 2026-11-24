@@ -29,4 +29,9 @@ public final class Const {
 
     // ---- File ----
     public static final DateTimeFormatter FILE_TIME_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss");
+
+
+    // Cờ xoá mềm is_deleted
+    public static final int NOT_DELETED = 0;
+    public static final int DELETED = 1;
 }

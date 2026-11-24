@@ -34,7 +34,7 @@ public final class SecurityUtil {
         }
         return Optional.empty();
     }
-
+//  để lấy tên người dùng (username) vì trong các hệ thống dùng JWT
     public static String getCurrentUsername() {
         return getJwt().map(jwt -> jwt.getClaimAsString(PREFERRED_USERNAME)).orElse(ANONYMOUS);
     }
